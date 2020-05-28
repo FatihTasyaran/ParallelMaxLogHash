@@ -30,7 +30,7 @@ void hash_parameter(int* randList, int k){
 
 void MaxLog(int* setA, int* setB, int* randomNoA, int* randomNoB,
 	    char* setAvals, char* setBvals,
-	    std::bitset<128> &setAsigs, std::bitset<128> &setBsigs, int cardinal, int k){
+	    std::bitset<16> &setAsigs, std::bitset<16> &setBsigs, int cardinal, int k){
 
   for(int i = 0; i < k; i++){
     setAvals[i] = -1;
@@ -103,14 +103,14 @@ void MaxLog(int* setA, int* setB, int* randomNoA, int* randomNoB,
     }
   }
 
-
+  /*
   for(int i = 0; i < k; i++){
     std::cout << "SetA val " << i << ": " << (int)setAvals[i] << " sig: " << setAsigs[i] << std::endl;
-  }
+    }*/
   
 }
 
-double estimate(char* setAvals, char* setBvals, std::bitset<128> setAsigs, std::bitset<128> setBsigs, int k){
+double estimate(char* setAvals, char* setBvals, std::bitset<16> setAsigs, std::bitset<16> setBsigs, int k){
 
   double jaccard_similarity = 0;
   int con = 0;
@@ -144,8 +144,9 @@ double estimate(char* setAvals, char* setBvals, std::bitset<128> setAsigs, std::
 int main(int argc, char** argv){
 
   std::fstream filer(argv[1]);
-  int k = std::atoi(argv[2]);
-
+  //int k = std::atoi(argv[2]);
+  int k = 16;
+  
   int cardinal;
   int value;
 
@@ -180,10 +181,10 @@ int main(int argc, char** argv){
     }*/
 
   char* setAvals = new char[k];
-  std::bitset<128> setAsigs;
+  std::bitset<16> setAsigs;
 
   char* setBvals = new char[k];
-  std::bitset<128> setBsigs;
+  std::bitset<16> setBsigs;
 
   
   double start = omp_get_wtime();

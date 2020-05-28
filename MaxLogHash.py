@@ -177,7 +177,7 @@ if __name__ == '__main__':
     random_seed = 1
     card = 100000
     jaccard_true = 0.9
-    k = int(128)
+    k = int(1024)
     total_num = card * 2
     sim = (2 * jaccard_true) / (1 + jaccard_true)
     mod = sys.argv[1]

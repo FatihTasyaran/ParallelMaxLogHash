@@ -1,2 +1,2 @@
 all:
-	g++ -o try0 faster.cpp -fopenmp -O3
+	g++ -o k16 faster.cpp -fopenmp -O3
