@@ -1,6 +1,7 @@
 #include <iostream>
 #include <string>
 #include <fstream>
+#include <sstream>
 #include <omp.h>
 #include <random>
 #include <bitset>
@@ -14,13 +15,18 @@ std::random_device rd;
 std::mt19937 e{rd()}; // or std::default_random_engine e{rd()};
 std::uniform_int_distribution<int> dist{1, totalShingles};
 
-void hash_parameter(int* randList, int k){
+#define K 1024
+#define NO_THREADS 8
+
+void hash_parameter(int* randList){
 
   int cursor = 0;
   int randIndex = dist(e);
 
   randList[cursor] = randIndex;
- 
+
+  int k = K;
+  
   while(k > 0){
     randList[cursor] = dist(e);
     cursor += 1;
@@ -28,9 +34,9 @@ void hash_parameter(int* randList, int k){
   } 
 }
 
-void insert_one_set(int* set, int* randomNoA, int* randomNoB, char* &setVals, std::bitset<2048> &setSigs, int data_cardinal, int k){
+void insert_one_set(int* set, int* randomNoA, int* randomNoB, char* &setVals, std::bitset<K> &setSigs, int data_cardinal){
   
-  for(int i = 0; i < k; i++){
+  for(int i = 0; i < K; i++){
     setVals[i] = -1;
     //std::cout << "Setting: " << (int)setAvals[i] << std::endl;
   }
@@ -39,7 +45,7 @@ void insert_one_set(int* set, int* randomNoA, int* randomNoB, char* &setVals, st
   //For Set A
   for(int i = 0; i < data_cardinal; i++){
     //std::cout << "data cardinal: " << i << std::endl;
-    for(int x = 0;  x < k; x++){
+    for(int x = 0;  x < K; x++){
       
       double temp = (randomNoA[x] * set[i] + randomNoB[x]) % totalShingles;
       
@@ -60,7 +66,7 @@ void insert_one_set(int* set, int* randomNoA, int* randomNoB, char* &setVals, st
       if(hash_val > setVals[x]){
 	setVals[x] = hash_val;
 	setSigs[x] = 1;
-	std::cout << "Just setting: " << (int)setVals[x] << " ||| " << setSigs[x] << std::endl; 
+	//std::cout << "Just setting: " << (int)setVals[x] << " ||| " << setSigs[x] << std::endl; 
       }
 
       else if(hash_val == setVals[x]){
@@ -69,18 +75,19 @@ void insert_one_set(int* set, int* randomNoA, int* randomNoB, char* &setVals, st
       
     }
   }
-
+  /*
   for(int i = 0; i < 10; i++){
     std::cout << "In Insert: " << setVals[i] << " " << setSigs[i] << std::endl;
   }
+  */
   
 }
 
 void MaxLog(int* setA, int* setB, int* randomNoA, int* randomNoB,
 	    char* setAvals, char* setBvals,
-	    std::bitset<2048> &setAsigs, std::bitset<2048> &setBsigs, int cardinal, int k){
+	    std::bitset<K> &setAsigs, std::bitset<K> &setBsigs, int cardinal){
 
-  for(int i = 0; i < k; i++){
+  for(int i = 0; i < K; i++){
     setAvals[i] = -1;
     //std::cout << "Setting: " << (int)setAvals[i] << std::endl;
     setBvals[i] = -1;
@@ -89,7 +96,7 @@ void MaxLog(int* setA, int* setB, int* randomNoA, int* randomNoB,
 
   //For Set A
   for(int i = 0; i < cardinal; i++){
-    for(int x = 0;  x < k; x++){
+    for(int x = 0;  x < K; x++){
       
       double temp = (randomNoA[x] * setA[i] + randomNoB[x]) % totalShingles;
 
@@ -124,7 +131,7 @@ void MaxLog(int* setA, int* setB, int* randomNoA, int* randomNoB,
 
   //For Set B
   for(int i = 0; i < cardinal; i++){
-    for(int x = 0;  x < k; x++){
+    for(int x = 0;  x < K; x++){
       
       double temp = (randomNoA[x] * setB[i] + randomNoB[x]) % totalShingles;
 
@@ -162,13 +169,13 @@ void MaxLog(int* setA, int* setB, int* randomNoA, int* randomNoB,
 
 
 
-double estimate(char* setAvals, char* setBvals, std::bitset<2048> setAsigs, std::bitset<2048> setBsigs, int k){
+double estimate(char* setAvals, char* setBvals, std::bitset<K> setAsigs, std::bitset<K> setBsigs){
 
   double jaccard_similarity = 0;
   int con = 0;
 
   
-  for(int i = 0; i < k ; i++){
+  for(int i = 0; i < K ; i++){
     //std::cout << "i: " << i << std::endl;
     //std::cout << "i:" << i << "setAvals[i]: " << (int)setAvals[i] << " setAsigs[i]: " << setAsigs[i] <<
     //"     setBvals[i]: " << (int)setBvals[i] << " setBsigs[i]: " << setBsigs[i] << std::endl;
@@ -180,16 +187,16 @@ double estimate(char* setAvals, char* setBvals, std::bitset<2048> setAsigs, std:
       con += 1;
     }
     else{
-      std::cout << "setAvals: " << (int)setAvals[i] << " " << (int)setBvals[i] << " " << setAsigs[i] << " " << setBsigs[i] << std::endl;
+      //std::cout << "setAvals: " << (int)setAvals[i] << " " << (int)setBvals[i] << " " << setAsigs[i] << " " << setBsigs[i] << std::endl;
       ;
     }
   }
   
 
-  double dk = k;
+  double dk = K;
   double cofactor = 1.0/0.7213;
 
-  std::cout << "Con: " << con << std::endl;
+  //std::cout << "Con: " << con << std::endl;
   
   jaccard_similarity = 1.0 - con*(1/dk) * (1/0.7213);
 
@@ -203,50 +210,72 @@ double estimate(char* setAvals, char* setBvals, std::bitset<2048> setAsigs, std:
 
 int main(int argc, char** argv){
 
-  std::fstream filer(argv[1]);
+  //std::fstream filer(argv[1]);
   //int k = std::atoi(argv[2]);
-  int k = 2048;
+  //int k = 1024;
   
   int data_cardinal;
   int set_cardinal;
   int value;
   
-  filer >> data_cardinal >> set_cardinal;
+  //filer >> set_cardinal;
 
-  std::cout << "Cardinality of stream: " << data_cardinal << std::endl;
+  std::ifstream file(argv[1]);
+  std::stringstream ss;
+
+  int start_counter = 0;
+  int set_counter = -1;
+  int card_counter = 0;
+
+  int** sets;
+  int* set_sizes;
+  
+  if (file.is_open()) {
+    std::string line;
+    while (std::getline(file, line)) {
+      //std::cout << line << std::endl;
+      if(start_counter == 0){
+	ss << line;
+	ss >> value;
+	set_cardinal = value;
+	sets = new int*[set_cardinal];
+	set_sizes = new int[set_cardinal];
+	start_counter++;
+      }
+      else{
+	std::stringstream sss(line);
+	int set_cardinality_counter = 0;
+	int cursor = 0;
+	while(!sss.eof()){
+	  sss >> value;
+	  //std::cout << "value: " << value << std::endl;
+	  if(set_cardinality_counter == 0){
+	    //std::cout << "Allocating: "  << value << std::endl;
+	    sets[set_counter] = new int[value];
+	    set_sizes[set_counter] = value;
+	    set_cardinality_counter++;
+	  }
+	  else{
+	    //std::cout << "About to explode" << std::endl;
+	    sets[set_counter][cursor] = value;
+	    cursor++;
+	  }
+	}
+      }
+      set_counter++;
+    }
+    file.close();
+  }
+  
+
+  //std::cout << "Cardinality of stream: " << data_cardinal << std::endl;
   std::cout << "Cardinality of set size: " << set_cardinal << std::endl;
 
-  //int* setA = new int[set_cardinal];
-  //int* setB = new int[set_cardinal];
+  int* randomNoA = new int[K+1];
+  int* randomNoB = new int[K+1];
 
-  int** sets = new int*[set_cardinal];
-
-  for(int i = 0; i < set_cardinal; i++){
-    sets[i] = new int[data_cardinal];
-  }
-
-  for (int i = 0; i < data_cardinal; i++){
-    for (int j = 0; j < set_cardinal; j++){
-      filer >> value;
-      sets[j][i] = value;
-    }
-  }
-
-  /****CHECK READ CORRECTNESS
-  for(int i = 41; i < 43; i++){
-    std::cout << "Column: " << i << std::endl;
-    for(int j = 0; j < 43; j++){
-      std::cout << "entry " << j << " :" << sets[i][j] << " ";
-    }
-    std::cout << "\n";
-  }
-  */
-
-  int* randomNoA = new int[k+1];
-  int* randomNoB = new int[k+1];
-
-  hash_parameter(randomNoA, k);
-  hash_parameter(randomNoB, k);
+  hash_parameter(randomNoA);
+  hash_parameter(randomNoB);
 
   /*for(int i = 0; i < k; i++){
     std::cout << "Rand a: " << randomNoA[i] << " Rand b: " << randomNoB[i] << std::endl;
@@ -255,10 +284,10 @@ int main(int argc, char** argv){
   char** setVals = new char*[set_cardinal];
 
   for(int i = 0; i < set_cardinal; i++){
-    setVals[i] = new char[k];
+    setVals[i] = new char[K];
   }
 
-  std::bitset<2048>* setSigs = new std::bitset<2048>[set_cardinal];
+  std::bitset<K>* setSigs = new std::bitset<K>[set_cardinal];
 
     
   /*
@@ -268,24 +297,42 @@ int main(int argc, char** argv){
   char* setBvals = new char[k];
   std::bitset<16> setBsigs;
   */
+  /*
+  for(int i = 0; i < 10; i++){
+    std::cout << sets[0][i] << std::endl;
+  }
+  */
+  double sims_zero[128];
   
   double start = omp_get_wtime();
-  //MaxLog(setA, setB, randomNoA, randomNoB, setAvals, setBvals, setAsigs, setBsigs, set_cardinal, k);
-  //MaxLog(sets[0], sets[1], randomNoA, randomNoB, setVals[0], setVals[1], setSigs[0], setSigs[1], set_cardinal, k);
-  insert_one_set(sets[0], randomNoA, randomNoB, setVals[0], setSigs[0], data_cardinal, k);
-  insert_one_set(sets[42], randomNoA, randomNoB, setVals[42], setSigs[42], data_cardinal, k);
-  double duration = omp_get_wtime() - start;
-
-  for(int i = 0; i < 20; i++){
-    std::cout << "SetVals: " << setVals[0][i] << std::endl;
+#pragma omp parallel num_threads(NO_THREADS)
+  {
+#pragma omp  for schedule(guided)
+    for(int i = 0; i < set_cardinal; i++){
+      insert_one_set(sets[i], randomNoA, randomNoB, setVals[i], setSigs[i], set_sizes[i]);
+      //std::cout << "Sketched set " << i << std::endl;
+    }
   }
-    
-  
-  //double estimation = estimate(setAvals, setBvals, setAsigs, setBsigs, k);
-  double estimation = estimate(setVals[0], setVals[42], setSigs[0], setSigs[42], k);
+  double insert = omp_get_wtime() - start;
 
-  std::cout << "Estimation: " << estimation << std::endl;
-  std::cout << "Estimated Time: " << duration << std::endl;
+  double cp = omp_get_wtime();
+#pragma omp parallel num_threads(NO_THREADS)
+  {
+#pragma omp  for schedule(guided)
+    for(int i = 1; i < set_cardinal; i++){
+      double estimation = estimate(setVals[0], setVals[i], setSigs[0], setSigs[i]);
+      sims_zero[i-1] = estimation;
+    }
+  }
+  double estimate_duration = omp_get_wtime() - cp;
+  
+
+  for(int i = 1; i < set_cardinal; i++){
+    std::cout << "Vs " << i << ": " << sims_zero[i] << std::endl;
+  }
+  
+  std::cout << "Insert Time: " << insert << std::endl;
+  std::cout << "Estimate Time: " << estimate_duration << std::endl;
   
   return 0;
 
