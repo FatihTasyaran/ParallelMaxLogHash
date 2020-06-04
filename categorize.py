@@ -1,5 +1,7 @@
 import sys
-
+import operator
+import collections
+from collections import defaultdict
 filename = sys.argv[1]
 
 base_sets = []
@@ -78,19 +80,14 @@ for i in range(129):
 
     writer.write("\n")
 
-'''
-for i in range(129):
-    print('Length of set', i , ':', len(sets[i]))
+sims = {}
 
-for i in range(len(data)):
-    for j in range(128):
-        
-        try:
-            writer.write(str(sets[j][i]))
-        except:
-            print('j:', j, 'i:', i)
-            exit(1)
-        writer.write("\t")
-    writer.write(str(sets[128][i]))
-    writer.write("\n")
-'''
+for i in range(0, 127):
+    intersection = len(list(set(sets[i]).intersection(sets[126])))
+    union = (len(sets[i]) + len(sets[126])) - intersection
+    jaccard = float(intersection)/union
+    
+    sims[str(i)] = jaccard
+
+for w in sorted(sims, key=sims.get, reverse=True):
+    print(w, sims[w])

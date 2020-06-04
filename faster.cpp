@@ -6,6 +6,7 @@
 #include <random>
 #include <bitset>
 #include <math.h>
+#include <algorithm>
 
 //#define totalShingles (1ULL<<32)-1
 #define totalShingles (1<<31)-1
@@ -16,13 +17,20 @@ std::mt19937 e{rd()}; // or std::default_random_engine e{rd()};
 std::uniform_int_distribution<int> dist{1, totalShingles};
 
 #define K 1024
-#define NO_THREADS 8
+#define NO_THREADS 60
+
+struct comparison{
+  double score;
+  std::string name;
+  int set1;
+  int set2;
+};
 
 void hash_parameter(int* randList){
-
+  
   int cursor = 0;
   int randIndex = dist(e);
-
+  
   randList[cursor] = randIndex;
 
   int k = K;
@@ -32,6 +40,11 @@ void hash_parameter(int* randList){
     cursor += 1;
     k -= 1;
   } 
+}
+
+bool compareComparisons(comparison a, comparison b) 
+{ 
+  return a.score > b.score; 
 }
 
 void insert_one_set(int* set, int* randomNoA, int* randomNoB, char* &setVals, std::bitset<K> &setSigs, int data_cardinal){
@@ -334,6 +347,67 @@ int main(int argc, char** argv){
   std::cout << "Insert Time: " << insert << std::endl;
   std::cout << "Estimate Time: " << estimate_duration << std::endl;
   
+    
+  int unique_counter = 0;
+  for(int i = 0; i < set_cardinal; i++){
+    for(int c = i+1; c < set_cardinal; c++){
+      unique_counter++;
+      //std::cout << i << "," << c << std::endl;
+    }
+  }
+  std::cout << "Unique counter: " << unique_counter << std::endl;
+
+  int comp_counter = 0;
+  comparison* comparisons = new comparison[unique_counter];
+
+  std::pair<int,int> *memory = new std::pair<int,int>[unique_counter];
+
+  for(int i = 0; i < set_cardinal; i++){
+    for(int c = i+1; c < set_cardinal; c++){
+      std::string s1 = std::to_string(i);
+      std::string s2 = std::to_string(c);
+      std::string comp_name = s1 + "v" + s2;
+      comparisons[comp_counter].name = comp_name;
+      memory[comp_counter].first = i;
+      memory[comp_counter].second = c;
+      comp_counter++;
+    }
+  }
+
+  std::cout << "Name: " << comparisons[23].name << std::endl;
+
+#pragma omp parallel num_threads(NO_THREADS)
+  {
+#pragma omp  for schedule(guided)
+    for(int i = 0; i < unique_counter; i++){
+      double estimation = estimate(setVals[memory[i].first], setVals[memory[i].second], setSigs[memory[i].first], setSigs[memory[i].second]);
+      comparisons[i].score = estimation;
+      comparisons[i].set1 = memory[i].first;
+      comparisons[i].set2 = memory[i].second;
+    }
+  }
+  double estimate = omp_get_wtime() - cp;
+  
+  std::sort(comparisons, comparisons+unique_counter, compareComparisons);
+
+  for(int i = 0; i < unique_counter; i++){
+    if(comparisons[i].set2 == 126)
+      std::cout << comparisons[i].name << "->" << comparisons[i].score << std::endl;
+  }
+
+  std::cout << "Estimation Time: " << estimate << std::endl;
+  std::cout << "Total Time: " << estimate + insert << std::endl;
+  
+  int total_elem = 0;
+
+  for(int i = 0; i < set_cardinal; i++){
+    total_elem += set_sizes[i];
+  }
+  
+  double throughput = total_elem/insert;
+  
+  std::cout << "Throughput: " << throughput << " integers,  " << throughput/250000 << "Mb/s" << std::endl;
+
   return 0;
 
 }
